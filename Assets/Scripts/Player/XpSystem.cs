@@ -46,6 +46,7 @@ public class XpSystem : MonoBehaviour
     public List<LevelUnityEvent> levelEvents = new List<LevelUnityEvent>();
 
     private PowerUpSelectionUI PUSUI;
+    [SerializeField] private StatusEffectSystem statusEffects;
 
     // Selection queue machinery
     private int pendingSelections = 0;
@@ -62,6 +63,7 @@ public class XpSystem : MonoBehaviour
     {
         var gc = GameObject.FindGameObjectWithTag("GameController");
         if (gc != null) PUSUI = gc.GetComponent<PowerUpSelectionUI>();
+        if (statusEffects == null) statusEffects = GameObject.FindGameObjectWithTag("Player").GetComponent<StatusEffectSystem>();
     }
 
     private void Update()
@@ -84,6 +86,9 @@ public class XpSystem : MonoBehaviour
     public int AddExperience(int amount)
     {
         if (amount <= 0 || IsMaxLevel) return 0;
+
+        amount = ApplyXpBoost(amount);
+        if (amount <= 0) return 0;
 
         int levelsGained = 0;
         int safety = 1000;
@@ -251,5 +256,16 @@ public class XpSystem : MonoBehaviour
         }
 
         selectionRunner = null;
+    }
+
+    private int ApplyXpBoost(int amount)
+    {
+        if (statusEffects == null) return amount;
+
+        float multiplier = statusEffects.CurrentXpMultiplier;
+        if (Mathf.Approximately(multiplier, 1f)) return amount;
+
+        int adjusted = Mathf.RoundToInt(amount * multiplier);
+        return Mathf.Max(0, adjusted);
     }
 }

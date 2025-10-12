@@ -33,6 +33,13 @@ public class Trigger2DEvent : MonoBehaviour
         GameObject.FindGameObjectWithTag("GameController").GetComponent<XpSystem>().AddExperience(Random.Range(value, value * 2));
     }
 
+    public void XpBoost()
+    {
+        var player = GameObject.FindGameObjectWithTag("Player").GetComponent<SimpleHealth>();
+        if (player == null) return;
+        player.GetComponent<StatusEffectSystem>().ApplyStatusEffect_Int(9, 30);
+    }
+
     public void Hearth(float value)
     {
         var player = GameObject.FindGameObjectWithTag("Player").GetComponent<SimpleHealth>();

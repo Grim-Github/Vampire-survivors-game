@@ -22,6 +22,7 @@ public class StatusEffectSystem : MonoBehaviour
         Poison = 6,
         Frozen = 7,
         Regeneration = 8,
+        XpBoost = 9,
         // Add more: Poison, Stunned, Shielded, etc.
     }
 
@@ -65,6 +66,12 @@ public class StatusEffectSystem : MonoBehaviour
     [Tooltip("Healing applied per tick while Regeneration is active (rounded to int).")]
     [SerializeField] public float regenerationPerTick = 5f;
 
+    [Header("XP Boost")]
+    [Tooltip("If true, applying the XpBoost status adjusts XP rewards while active.")]
+    [SerializeField] private bool enableXpBoost = true;
+    [Tooltip("Multiplier applied to XP gain while XpBoost is active.")]
+    [SerializeField, Min(0f)] private float xpBoostMultiplier = 2f;
+
     [Header("UnityEvent Defaults")]
     [SerializeField, Min(0.01f)] private float defaultDuration = 5f;
     [SerializeField, Min(0f)] private float defaultTickInterval = 1f;
@@ -82,11 +89,15 @@ public class StatusEffectSystem : MonoBehaviour
 
     private readonly Dictionary<StatusType, Effect> _active = new Dictionary<StatusType, Effect>(8);
     private static readonly List<StatusType> _keysCache = new List<StatusType>(8);
+    private float currentXpMultiplier = 1f;
+
+    public float CurrentXpMultiplier => enableXpBoost ? currentXpMultiplier : 1f;
 
     private void Awake()
     {
         if (health == null)
             health = GetComponent<SimpleHealth>();
+        currentXpMultiplier = 1f;
     }
 
     private void Update()
@@ -115,6 +126,7 @@ public class StatusEffectSystem : MonoBehaviour
             if (e.remaining <= 0f)
             {
                 _active.Remove(type);
+                HandleEffectEnded(type);
                 OnEnd?.Invoke(type);
             }
         }
@@ -155,6 +167,7 @@ public class StatusEffectSystem : MonoBehaviour
             e.remaining = duration;              // reset remaining time
                                                  // keep e.tickInterval, e.tickTimer, e.tickCount as-is
                                                  // ignore tickInterval parameter on refresh
+            HandleEffectRefreshed(type);
         }
         else
         {
@@ -168,6 +181,7 @@ public class StatusEffectSystem : MonoBehaviour
             };
             _active.Add(type, e);
             OnStart?.Invoke(type);
+            HandleEffectStarted(type);
         }
     }
 
@@ -176,7 +190,10 @@ public class StatusEffectSystem : MonoBehaviour
     public void RemoveStatus(StatusType type)
     {
         if (_active.Remove(type))
+        {
+            HandleEffectEnded(type);
             OnEnd?.Invoke(type);
+        }
     }
 
     /// <summary>True if the status is currently active.</summary>
@@ -194,7 +211,10 @@ public class StatusEffectSystem : MonoBehaviour
         _keysCache.Clear();
         _keysCache.AddRange(_active.Keys);
         foreach (var k in _keysCache)
+        {
+            HandleEffectEnded(k);
             OnEnd?.Invoke(k);
+        }
         _active.Clear();
     }
 
@@ -247,6 +267,34 @@ public class StatusEffectSystem : MonoBehaviour
             regenerationPerTick = amount;
     }
 
+    private void HandleEffectStarted(StatusType type)
+    {
+        if (type == StatusType.XpBoost)
+            SetXpBoostActive(true);
+    }
+
+    private void HandleEffectRefreshed(StatusType type)
+    {
+        if (type == StatusType.XpBoost)
+            SetXpBoostActive(true);
+    }
+
+    private void HandleEffectEnded(StatusType type)
+    {
+        if (type == StatusType.XpBoost)
+            SetXpBoostActive(false);
+    }
+
+    private void SetXpBoostActive(bool active)
+    {
+        if (!enableXpBoost)
+        {
+            currentXpMultiplier = 1f;
+            return;
+        }
+
+        currentXpMultiplier = active ? Mathf.Max(0f, xpBoostMultiplier) : 1f;
+    }
 
     // ---- Built-in handlers ----
     private void HandleBuiltIn(StatusType type)

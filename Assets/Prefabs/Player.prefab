@@ -1675,7 +1675,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &5526111780517100950
 Transform:
   m_ObjectHideFlags: 0
@@ -4653,6 +4653,8 @@ MonoBehaviour:
   health: {fileID: 0}
   enableRegeneration: 1
   regenerationPerTick: 3
+  enableXpBoost: 1
+  xpBoostMultiplier: 3
   defaultDuration: 5
   defaultTickInterval: 1
 --- !u!81 &6608178519213617443
@@ -16690,6 +16692,8 @@ MonoBehaviour:
     sprite: {fileID: -507184262331359192, guid: 9799cf05f39e7b74f850ecdfc225c03c, type: 3}
   - type: 8
     sprite: {fileID: -7252421338754634560, guid: 411652de91e329549901bf7e0db02e9b, type: 3}
+  - type: 9
+    sprite: {fileID: 1781937086033352542, guid: 7ee4e681aa5aa8a44b2221fd0625bba9, type: 3}
 --- !u!1 &6278243993951913938
 GameObject:
   m_ObjectHideFlags: 0
