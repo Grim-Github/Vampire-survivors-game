@@ -90,6 +90,7 @@ public class StatusEffectSystem : MonoBehaviour
     private readonly Dictionary<StatusType, Effect> _active = new Dictionary<StatusType, Effect>(8);
     private static readonly List<StatusType> _keysCache = new List<StatusType>(8);
     private float currentXpMultiplier = 1f;
+    private enum BuiltInEvent { Started, Refreshed, Tick, Ended }
 
     public float CurrentXpMultiplier => enableXpBoost ? currentXpMultiplier : 1f;
 
@@ -120,13 +121,13 @@ public class StatusEffectSystem : MonoBehaviour
                 e.tickTimer -= e.tickInterval;
                 e.tickCount++;
                 OnTick?.Invoke(type, e.tickCount);
-                HandleBuiltIn(type);
+                HandleBuiltIn(type, BuiltInEvent.Tick);
             }
 
             if (e.remaining <= 0f)
             {
                 _active.Remove(type);
-                HandleEffectEnded(type);
+                HandleBuiltIn(type, BuiltInEvent.Ended);
                 OnEnd?.Invoke(type);
             }
         }
@@ -167,7 +168,7 @@ public class StatusEffectSystem : MonoBehaviour
             e.remaining = duration;              // reset remaining time
                                                  // keep e.tickInterval, e.tickTimer, e.tickCount as-is
                                                  // ignore tickInterval parameter on refresh
-            HandleEffectRefreshed(type);
+            HandleBuiltIn(type, BuiltInEvent.Refreshed);
         }
         else
         {
@@ -181,7 +182,7 @@ public class StatusEffectSystem : MonoBehaviour
             };
             _active.Add(type, e);
             OnStart?.Invoke(type);
-            HandleEffectStarted(type);
+            HandleBuiltIn(type, BuiltInEvent.Started);
         }
     }
 
@@ -191,7 +192,7 @@ public class StatusEffectSystem : MonoBehaviour
     {
         if (_active.Remove(type))
         {
-            HandleEffectEnded(type);
+            HandleBuiltIn(type, BuiltInEvent.Ended);
             OnEnd?.Invoke(type);
         }
     }
@@ -212,7 +213,7 @@ public class StatusEffectSystem : MonoBehaviour
         _keysCache.AddRange(_active.Keys);
         foreach (var k in _keysCache)
         {
-            HandleEffectEnded(k);
+            HandleBuiltIn(k, BuiltInEvent.Ended);
             OnEnd?.Invoke(k);
         }
         _active.Clear();
@@ -267,24 +268,6 @@ public class StatusEffectSystem : MonoBehaviour
             regenerationPerTick = amount;
     }
 
-    private void HandleEffectStarted(StatusType type)
-    {
-        if (type == StatusType.XpBoost)
-            SetXpBoostActive(true);
-    }
-
-    private void HandleEffectRefreshed(StatusType type)
-    {
-        if (type == StatusType.XpBoost)
-            SetXpBoostActive(true);
-    }
-
-    private void HandleEffectEnded(StatusType type)
-    {
-        if (type == StatusType.XpBoost)
-            SetXpBoostActive(false);
-    }
-
     private void SetXpBoostActive(bool active)
     {
         if (!enableXpBoost)
@@ -297,8 +280,23 @@ public class StatusEffectSystem : MonoBehaviour
     }
 
     // ---- Built-in handlers ----
-    private void HandleBuiltIn(StatusType type)
+    private void HandleBuiltIn(StatusType type, BuiltInEvent evt)
     {
+        if (type == StatusType.XpBoost)
+        {
+            if (evt == BuiltInEvent.Started || evt == BuiltInEvent.Refreshed)
+            {
+                SetXpBoostActive(true);
+            }
+            else if (evt == BuiltInEvent.Ended)
+            {
+                SetXpBoostActive(false);
+            }
+        }
+
+        if (evt != BuiltInEvent.Tick)
+            return;
+
         if (type == StatusType.Bleeding && enableBleeding && bleedingDamagePerTick > 0f)
         {
             if (health != null)
