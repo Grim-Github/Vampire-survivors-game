@@ -37,6 +37,7 @@ public class TwitchListener : MonoBehaviour
     [Tooltip("Global max active spawns = minPower * ratio")]
     [Min(1)] public int maxSpawnPerPowerRatio = 3;
     public float chanceToUpgradeMinPower = 0.6f; // Chance to upgrade chatter power on spawn
+    [SerializeField] private bool alwaysSpawnMaxEnemies = false;
 
     // Track time for next power increase attempt
     private float nextSpawnIncreaseTime = 0f;
@@ -127,6 +128,9 @@ public class TwitchListener : MonoBehaviour
                 }
             }
 
+            if (alwaysSpawnMaxEnemies)
+                EnsureMaxSpawns();
+
         }
 
         // Update stopwatch UI
@@ -184,6 +188,7 @@ public class TwitchListener : MonoBehaviour
 
     private void OnChatMessage(Chatter chatter)
     {
+        if (alwaysSpawnMaxEnemies) return;
         if (player == null) return;
         chatters.Add(chatter);
 
@@ -198,7 +203,7 @@ public class TwitchListener : MonoBehaviour
         int globalMaxAllowed = Mathf.Max(0, minPower * Mathf.Max(1, maxSpawnPerPowerRatio));
         int globalRemaining = Mathf.Max(0, globalMaxAllowed - spawnedChatters.Count);
 
-        int unitsToSpawn = Mathf.Min(unitsByBudget, globalRemaining);
+        int unitsToSpawn = alwaysSpawnMaxEnemies ? globalRemaining : Mathf.Min(unitsByBudget, globalRemaining);
         for (int i = 0; i < unitsToSpawn; i++)
         {
             string nameOverride = i == 0 ? null : $"{chatter.tags.displayName} ({i + 1})";
@@ -226,7 +231,6 @@ public class TwitchListener : MonoBehaviour
         if (prefab == null) return false;
         // Use displayName as the base name
         string baseName = chatter?.tags?.displayName ?? string.Empty;
-        if (string.IsNullOrEmpty(baseName)) return false;
 
         // Find a valid spawn position
         Vector3? spawnPosNullable = FindValidSpawnPosition();
@@ -234,6 +238,7 @@ public class TwitchListener : MonoBehaviour
         Vector3 spawnPos = spawnPosNullable.Value;
 
         string finalName = string.IsNullOrEmpty(displayNameOverride) ? baseName : displayNameOverride;
+        if (string.IsNullOrEmpty(finalName)) return false;
 
         GameObject instantiatedChatter = Instantiate(prefab, spawnPos, Quaternion.identity);
         instantiatedChatter.transform.name = finalName;
@@ -243,12 +248,18 @@ public class TwitchListener : MonoBehaviour
         if (stats != null)
         {
             stats.nameGUI.text = finalName;
-            stats.nameGUI.color = chatter.GetNameColor();
-            foreach (ChatterBadge b in chatter.tags.badges)
+            if (stats.nameGUI != null)
+                stats.nameGUI.color = chatter != null ? chatter.GetNameColor() : Color.white;
+            if (alwaysSpawnMaxEnemies && stats.nameGUI != null)
+                stats.nameGUI.enabled = false;
+            if (chatter != null)
             {
-                if (b.id == "subscriber" && int.Parse(b.version) < 100)
+                foreach (ChatterBadge b in chatter.tags.badges)
                 {
-                    stats.power += int.Parse(b.version);
+                    if (b.id == "subscriber" && int.Parse(b.version) < 100)
+                    {
+                        stats.power += int.Parse(b.version);
+                    }
                 }
             }
             stats.power += minPower;
@@ -260,6 +271,21 @@ public class TwitchListener : MonoBehaviour
 
         Debug.Log($"<color=#fef83e><b>[MESSAGE]</b></color> Spawned ({prefab.name}) for {finalName} at {spawnPos}");
         return true;
+    }
+
+    private void EnsureMaxSpawns()
+    {
+        int globalMaxAllowed = Mathf.Max(0, minPower * Mathf.Max(1, maxSpawnPerPowerRatio));
+        int globalMissing = Mathf.Max(0, globalMaxAllowed - spawnedChatters.Count);
+        if (globalMissing <= 0) return;
+
+        for (int i = 0; i < globalMissing; i++)
+        {
+            var entry = PickWeightedEntry();
+            if (entry == null || entry.prefab == null) break;
+            string nameOverride = $"Enemy ({spawnedChatters.Count + 1})";
+            TrySpawnChatter(null, entry.prefab, nameOverride);
+        }
     }
 
 

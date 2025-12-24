@@ -66,6 +66,6 @@
     "explorer.fileNesting.patterns": {
         "*.sln": "*.csproj"
     },
-    "dotnet.defaultSolution": "Quin-Game.sln",
+    "dotnet.defaultSolution": "Vampire-survivors-game.slnx",
     "dotnet.preferCSharpExtension": true
 }
